@@ -3,6 +3,9 @@
   :CUSTOM_ID: ecp-tree
   :END:
 
+#+NAME: screenshot
+[[./screenshot.png]]
+
 ** Introduction
 *Eglot Clojure Project Tree* uses custom functionality in clojure-lsp. Lsp-mode has treemacs integration, this is for people who for some reason decided to use eglot instead of lsp-mode.
 
@@ -56,7 +59,7 @@ ECP-Tree offers several customization options to adjust the appearance and behav
 
 Refer to the package source for detailed customization options and their default values.
 
-If ~.jar~ file nodes under 'External Dependencies' are missing children (such as ~.clj~ and ~.class~ files), you might need to add this to your ~~/.config/clojure-lsp/config.edn~
+If ~.jar~ file nodes under 'External Dependencies' are missing children (such as ~.clj~ and ~.class~ files), you might need to add this to your =~/.config/clojure-lsp/config.edn=
 
 #+begin_example
 {....
@@ -70,7 +73,7 @@ One notable configuration option is =ecpt-tree-skip-external-deps=. When set to 
 
 ** Development
 
-The ECP-Tree is developed and maintained by Jakub Zika. For contributions, suggestions, or issues, please visit the project's GitHub repository:
+The ECP-Tree is developed and maintained by zikajk. For contributions, suggestions, or issues, please visit the project's GitHub repository:
 
 - URL: http://github.com/zikajk/ecp-tree
 
@@ -96,9 +99,5 @@ ECP-Tree welcomes contributions from the community.
 *** Support
 
 For support, questions, or to report an issue, please use the GitHub issues page.
-
-** License
-
-ECP-Tree is distributed under the terms of a custom license. Please refer to the source code for detailed license information.
 
 *End of ECP-Tree README*
