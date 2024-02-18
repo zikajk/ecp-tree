@@ -1,0 +1,111 @@
+* Eglot Clojure Project Tree (ECP-Tree)
+  :PROPERTIES:
+  :CUSTOM_ID: ecp-tree
+  :END:
+
+#+NAME: screenshot
+[[./screenshot.png]]
+
+** Introduction
+*Eglot Clojure Project Tree* uses custom functionality in clojure-lsp. Lsp-mode has treemacs integration, this is for people who for some reason decided to use eglot instead of lsp-mode.
+
+This is an interactive project tree for Clojure projects. It facilitates the navigation and interaction with various project entities like files, namespaces, and functions directly from Emacs.
+
+** Installation
+
+To use ECP-Tree, ensure you have Emacs version 29.1 or newer installed, along with the Eglot and Hierarchy packages. Here's the minimum Emacs and package versions required:
+
+- Emacs 29.1
+- Eglot 1.12.29
+- Hierarchy 0.7.0
+- Jarchive 0.11.0
+
+Load the =ecp-tree.el= file into your Emacs and require it by adding the following line to your Emacs configuration:
+
+#+BEGIN_SRC emacs-lisp
+(require 'ecp-tree)
+#+END_SRC
+
+** Usage
+
+To display the project tree, execute:
+
+#+BEGIN_SRC
+M-x ecp-tree-show
+#+END_SRC
+
+If you need to clear the cache (this function works only if =ecp-tree-cache-enabled= is set to true), use:
+
+#+BEGIN_SRC
+M-x ecp-tree-clear-cache
+#+END_SRC
+
+To debug potentional problems during a hierarchy creation, use:
+
+#+BEGIN_SRC
+M-x ecp-tree-toggle-debug
+#+END_SRC
+
+** Configuration
+
+Can be customized by:
+
+- =(customize-group ecp-tree)=
+
+ECP-Tree offers several customization options to adjust the appearance and behavior of the project tree. These include:
+
+- Icon (string) for different node types like projects, folders, libraries, etc.
+- Enabling or disabling caching for node's children to improve performance.
+- Sorting children nodes alphabetically.
+
+Refer to the package source for detailed customization options and their default values.
+
+If ~.jar~ file nodes under 'External Dependencies' are missing children (such as ~.clj~ and ~.class~ files), you might need to add this to your =~/.config/clojure-lsp/config.edn=
+
+#+begin_example
+{....
+ :dependency-scheme "jar"
+...}
+#+end_example
+
+*** Skipping External Dependencies
+
+One notable configuration option is =ecpt-tree-skip-external-deps=. When set to =true=, ECP-Tree will skip the analysis of external dependencies. This can be particularly useful for speeding up the loading of the project tree, as analyzing external dependencies can be time-consuming. Users working on large projects or those who frequently navigate their project trees may find enabling this option useful, at least until lazy loading is supported.
+
+** Development
+
+The ECP-Tree is developed and maintained by zikajk. For contributions, suggestions, or issues, please visit the project's GitHub repository:
+
+- URL: http://github.com/zikajk/ecp-tree
+
+*** Current Features
+
+- Interactive project tree view.
+- Customizable icons (strings) for different node types.
+- Performance optimizations through optional caching.
+- Sorting of children nodes.
+
+*** Future Developments
+
+- Class Decompilation: Currently, ECP-Tree does not integrate class decompilation. It is a potential area for development, possibly leveraging existing clojure-lsp functionality. Contributions are welcome to implement this feature.
+
+- Lazy and Asynchronous Hierarchy Loading: Improving the project tree's responsiveness by finding ways to load the hierarchy lazily and possibly asynchronously, so users don't have to wait for the full hierarchy to build at once.
+
+- Cache Mechanism Improvements: The current cache mechanism is quite naive. Enhancing this could improve performance.
+
+*** Contributing
+
+ECP-Tree welcomes contributions from the community.
+
+*** Support
+
+For support, questions, or to report an issue, please use the GitHub issues page.
+
+*** Copying
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License along with this program. If not, see https://www.gnu.org/licenses/.
+
+*End of ECP-Tree README*
