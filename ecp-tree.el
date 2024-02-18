@@ -2,7 +2,7 @@
 
 ;; Author: Jakub Zika <zikajk@protonmail.com>
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "29.1") (eglot "1.12.29") (hierarchy "0.7.0"))
+;; Package-Requires: ((emacs "29.1") (eglot "1.12.29") (hierarchy "0.7.0") (jarchive "0.11.0")
 ;; Keywords: convenience, tools, languages
 ;; URL: http://github.com/zikajk/ecp-tree
 

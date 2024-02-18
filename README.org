@@ -18,6 +18,7 @@ To use ECP-Tree, ensure you have Emacs version 29.1 or newer installed, along wi
 - Emacs 29.1
 - Eglot 1.12.29
 - Hierarchy 0.7.0
+- Jarchive 0.11.0
 
 Load the =ecp-tree.el= file into your Emacs and require it by adding the following line to your Emacs configuration:
 
