@@ -34,12 +34,6 @@ To display the project tree, execute:
 M-x ecp-tree-show
 #+END_SRC
 
-If you need to clear the cache (this function works only if =ecp-tree-cache-enabled= is set to true), use:
-
-#+BEGIN_SRC
-M-x ecp-tree-clear-cache
-#+END_SRC
-
 To debug potentional problems during a hierarchy creation, use:
 
 #+BEGIN_SRC
@@ -68,10 +62,6 @@ If ~.jar~ file nodes under 'External Dependencies' are missing children (such as
 ...}
 #+end_example
 
-*** Skipping External Dependencies
-
-One notable configuration option is =ecpt-tree-skip-external-deps=. When set to =true=, ECP-Tree will skip the analysis of external dependencies. This can be particularly useful for speeding up the loading of the project tree, as analyzing external dependencies can be time-consuming. Users working on large projects or those who frequently navigate their project trees may find enabling this option useful, at least until lazy loading is supported.
-
 ** Development
 
 The ECP-Tree is developed and maintained by zikajk. For contributions, suggestions, or issues, please visit the project's GitHub repository:
@@ -87,11 +77,12 @@ The ECP-Tree is developed and maintained by zikajk. For contributions, suggestio
 
 *** Future Developments
 
-- Class Decompilation: Currently, ECP-Tree does not integrate class decompilation. It is a potential area for development, possibly leveraging existing clojure-lsp functionality. Contributions are welcome to implement this feature.
+- [ ] Class Decompilation: Currently, ECP-Tree does not integrate class decompilation. It is a potential area for development, possibly leveraging existing clojure-lsp functionality. Contributions are welcome to implement this feature.
 
-- Lazy and Asynchronous Hierarchy Loading: Improving the project tree's responsiveness by finding ways to load the hierarchy lazily and possibly asynchronously, so users don't have to wait for the full hierarchy to build at once.
+- [x] Lazy and Asynchronous Hierarchy Loading: Improving the project tree's responsiveness by finding ways to load the hierarchy lazily and possibly asynchronously, so users don't have to wait for the full hierarchy to build at once.
 
-- Cache Mechanism Improvements: The current cache mechanism is quite naive. Enhancing this could improve performance.
+- +Cache Mechanism Improvements: The current cache mechanism is quite naive. Enhancing this could improve performance.+
+  /Versions >=0.2 don't need cache anymore as they load their children lazily!/
 
 *** Contributing
 

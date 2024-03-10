@@ -1,7 +1,7 @@
 ;;; ecpt.el --- Eglot Clojure Project Tree -*- lexical-binding: t; -*-
 
 ;; Author: Jakub Zika <zikajk@protonmail.com>
-;; Version: 0.1.0
+;; Version: 0.2.0
 ;; Package-Requires: ((emacs "29.1") (eglot "1.12.29") (hierarchy "0.7.0") (jarchive "0.11.0")
 ;; Keywords: convenience, tools, languages
 ;; URL: http://github.com/zikajk/ecp-tree
@@ -33,7 +33,6 @@
 
 ;; Usage:
 ;; M-x ecp-tree-show to display the project tree.
-;; M-x ecp-tree-clear-cache to delete the cache, works only with ecp-tree-cache-enabled set to true.
 
 ;;; Code:
 
@@ -96,19 +95,8 @@ This icon (string) helps users quickly identify JAR files among other project re
   :type 'string
   :group 'ecp-tree-node-style)
 
-(defcustom ecp-tree-cache-enabled nil
-  "Enable or disable caching for node's children in the ECP-TREE.
-When set to true, children of nodes are cached to improve performance in navigating the project tree."
-  :type 'boolean
-  :group 'ecp-tree)
-
 (defcustom ecp-tree-sort-nodes 't
   "Enable to sort children nodes alphabetically. The first branch is never sorted."
-  :type 'boolean
-  :group 'ecp-tree)
-
-(defcustom ecp-tree-skip-external-deps '()
-  "Enable to skip analysis of external deps. This can usually save a lot of time."
   :type 'boolean
   :group 'ecp-tree)
 
@@ -153,8 +141,6 @@ FORMAT-STRING and ARGS are as in `format'."
     (8 ecp-tree--variable-icon)
     (9 ecp-tree--interface-icon)))
 
-(defvar ecp-tree--children-cache (make-hash-table :test 'equal))
-
 (defun ecp-tree--node-name (node)
   (let* ((name (plist-get node :name))
 	 (detail (plist-get node :detail))
@@ -175,41 +161,29 @@ FORMAT-STRING and ARGS are as in `format'."
 	       (and (listp element) (equal element new-node)))
 	     items)))
 
-(defun ecp-tree--get-children (hierarchy node use-cache)
-  "Get children for NODE, optionally using cache based on USE-CACHE.
-HIERARCHY is the tree structure to which NODE belongs."
+(defun ecp-tree--get-children (hierarchy node eglot-server)
+  "Get children for NODE."
  (ecp-tree--debug-message "Getting children for: %s" node)
   (when (listp node)
     (let ((nodes (plist-get node :nodes)))
-      (when (not (and ecp-tree-skip-external-deps (= 4 (plist-get node :type))))
-	(if nodes
-            (append nodes nil)		; If nodes are directly available, return them.
-          (if use-cache
-              (let ((cached (gethash node ecp-tree--children-cache)))
-		(if cached
-                    cached		; Return cached result if available.
-                  ;; Fetch, cache, and return the children if not in cache.
-                  (ecp-tree--fetch-and-maybe-cache-children node hierarchy use-cache)))
-            ;; Fetch without caching.
-            (ecp-tree--fetch-and-maybe-cache-children node hierarchy nil)))))))
+      (if nodes
+          (append nodes nil)		; If nodes are directly available, return them.
+        (ecp-tree--fetch-children hierarchy node eglot-server)))))
 
-(defun ecp-tree--fetch-and-maybe-cache-children (node hierarchy use-cache)
-  "Fetch children nodes for NODE and conditionally update cache based on USE-CACHE.
-HIERARCHY is the context."
+(defun ecp-tree--fetch-children (hierarchy node eglot-server)
+  "Fetch children nodes for NODE."
   (let* ((children-nodes
           (seq-remove
            (lambda (child-node) (ecp-tree--node-in-hierarchy-p hierarchy child-node))
            (append
 	    (plist-get
-	     (eglot--request (eglot-current-server) :clojure/workspace/projectTree/nodes node)
+	     (eglot--request eglot-server :clojure/workspace/projectTree/nodes node)
 	     :nodes)
 	    nil)))
 	(sorted-nodes (if ecp-tree-sort-nodes
 			(sort children-nodes (lambda (first second) (string< (plist-get first :name) (plist-get second :name))))
 			children-nodes)))
     (ecp-tree--debug-message "Found children: %s" sorted-nodes)
-    (when use-cache
-      (puthash node sorted-nodes ecp-tree--children-cache))
     sorted-nodes))
 
 (defun ecp-tree--open-file-or-jar (node type)
@@ -234,7 +208,7 @@ TYPE specifies whether to open a 'file or a 'jar."
 
 (defun ecp-tree--find-method (node)
   (ecp-tree--debug-message "Finding method for: %s" node)
-  (ecp-tree--visit-node-uri-on-pos node))
+  (ecp-tree--visit-node-uri-on-pos nde))
 
 (defun ecp-tree--find-variable (node)
   (ecp-tree--debug-message "Finding variable for: %s" node)
@@ -249,7 +223,6 @@ TYPE specifies whether to open a 'file or a 'jar."
         (ecp-tree--debug-message "Opening external CLJ file via Jarchive.el for: %s" node)
         (find-file (plist-get node :uri)))
     (message "Jarchive package is required to open %s" (plist-get node :uri))))
-
 
 (defun ecp-tree--click-action (node)
   (let ((nt (plist-get node :type)))
@@ -272,7 +245,8 @@ This function queries the eglot server for the current project's structure and d
 It allows users to interact with nodes representing different entities such as files, namespaces, and methods."
   (interactive)
   (if (and (featurep 'eglot) (featurep 'hierarchy))
-      (let* ((project-name (eglot-project-nickname (eglot-current-server)))
+      (let* ((ecs (eglot-current-server))
+	     (project-name (eglot-project-nickname ecs))
 	     (buffer-name (format "*%s-ecp-tree*" project-name))
 	     (buffer (get-buffer-create buffer-name))
 	     (hierarchy (hierarchy-new))
@@ -282,7 +256,9 @@ It allows users to interact with nodes representing different entities such as f
      hierarchy
      root
      nil
-     (lambda (node) (ecp-tree--get-children hierarchy node ecp-tree-cache-enabled)))
+     (lambda (node) (ecp-tree--get-children hierarchy node ecs))
+     nil
+     't)
     (switch-to-buffer
      (hierarchy-tree-display
       hierarchy
@@ -294,11 +270,6 @@ It allows users to interact with nodes representing different entities such as f
 					 (ecp-tree--click-action node))))))
       buffer)))
       (error "ECPT requires Emacs 29.1 or newer with built-in 'eglot' and 'hierarchy' packages")))
-
-(defun ecp-tree-clear-cache ()
-  "Clear the cache. Does nothing when `ecp-tree-cache-enabled` is nil."
-  (interactive)
-  (clrhash ecp-tree--children-cache))
 
 (provide 'ecp-tree)
 
