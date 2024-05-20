@@ -41,12 +41,12 @@
 
 (defgroup ecp-tree nil
   "Customization group for the ECP-TREE (Eglot Clojure Project Tree) package.
-This group contains settings for adjusting the behavior and appearance of the ECP-TREE project tree."
+For adjusting the behavior and appearance of the ECP-TREE project tree."
   :group 'clojure)
 
 (defgroup ecp-tree-node-style nil
-  "Customization options related to the appearance of nodes within the ECP-TREE tree.
-   This includes icons, positions, and other style-related settings."
+  "Options related to the appearance of nodes within the ECP-TREE tree.
+This includes icons, positions, and other style-related settings."
   :group 'ecp-tree)
 
 (defcustom ecp-tree--project-icon "☆"
@@ -96,7 +96,7 @@ This icon (string) helps users quickly identify JAR files among other project re
   :group 'ecp-tree-node-style)
 
 (defcustom ecp-tree-sort-nodes 't
-  "Enable to sort children nodes alphabetically. The first branch is never sorted."
+  "Enable to sort children nodes alphabetically.  The first branch is never sorted."
   :type 'boolean
   :group 'ecp-tree)
 
@@ -130,6 +130,7 @@ FORMAT-STRING and ARGS are as in `format'."
         (insert (format "%s\n" debug-message))))))
 
 (defun ecp-tree-type-to-icon (n)
+  "Select icon based on type of node - N."
   (pcase n
     (1 ecp-tree--project-icon)
     (2 ecp-tree--folder-icon)
@@ -142,6 +143,7 @@ FORMAT-STRING and ARGS are as in `format'."
     (9 ecp-tree--interface-icon)))
 
 (defun ecp-tree--node-name (node)
+  "Construct name based on provided NODE."
   (let* ((name (plist-get node :name))
 	 (detail (plist-get node :detail))
 	 (type (plist-get node :type))
@@ -155,31 +157,23 @@ FORMAT-STRING and ARGS are as in `format'."
 	  (concat label " " annt)
 	label))))
 
-(defun ecp-tree--node-in-hierarchy-p (hierarchy new-node)
-  (let ((items (hierarchy-items hierarchy)))
-    (cl-some (lambda (element)
-	       (and (listp element) (equal element new-node)))
-	     items)))
-
-(defun ecp-tree--get-children (hierarchy node eglot-server)
-  "Get children for NODE."
+(defun ecp-tree--get-children (node eglot-server)
+  "Get children for NODE in running EGLOT-SERVER."
  (ecp-tree--debug-message "Getting children for: %s" node)
   (when (listp node)
     (let ((nodes (plist-get node :nodes)))
       (if nodes
           (append nodes nil)		; If nodes are directly available, return them.
-        (ecp-tree--fetch-children hierarchy node eglot-server)))))
+        (ecp-tree--fetch-children  node eglot-server)))))
 
-(defun ecp-tree--fetch-children (hierarchy node eglot-server)
-  "Fetch children nodes for NODE."
+(defun ecp-tree--fetch-children (node eglot-server)
+  "Fetch children nodes for NODE in running EGLOT-SERVER."
   (let* ((children-nodes
-          (seq-remove
-           (lambda (child-node) (ecp-tree--node-in-hierarchy-p hierarchy child-node))
-           (append
-	    (plist-get
-	     (eglot--request eglot-server :clojure/workspace/projectTree/nodes node)
-	     :nodes)
-	    nil)))
+          (append
+	   (plist-get
+	    (eglot--request eglot-server :clojure/workspace/projectTree/nodes node)
+	    :nodes)
+	   nil))
 	(sorted-nodes (if ecp-tree-sort-nodes
 			(sort children-nodes (lambda (first second) (string< (plist-get first :name) (plist-get second :name))))
 			children-nodes)))
@@ -202,22 +196,27 @@ TYPE specifies whether to open a 'file or a 'jar."
       (message "File does not exist: %s" path))))
 
 (defun ecp-tree--visit-node-uri-on-pos (node)
+  "Visit uri in NODE on a specific location."
   (ecp-tree--open-file-or-jar node 'file)
   (let ((pos (eglot--lsp-position-to-point (plist-get (plist-get node :range) :start) t)))
     (goto-char pos)))
 
 (defun ecp-tree--find-method (node)
+  "Visit method in NODE."
   (ecp-tree--debug-message "Finding method for: %s" node)
-  (ecp-tree--visit-node-uri-on-pos nde))
+  (ecp-tree--visit-node-uri-on-pos node))
 
 (defun ecp-tree--find-variable (node)
+  "Visit variable in NODE."
   (ecp-tree--debug-message "Finding variable for: %s" node)
   (ecp-tree--visit-node-uri-on-pos node))
 
 (defun ecp-tree--undefined-action (node)
+  "Do nothing - here NODE is used for debugging purposes only."
   (ecp-tree--debug-message "Undefined action for node: %s" node))
 
 (defun ecp-tree--open-external-clj (node)
+  "Open external clj(s) library in NODE."
   (if (require 'jarchive nil 'noerror)
       (progn
         (ecp-tree--debug-message "Opening external CLJ file via Jarchive.el for: %s" node)
@@ -225,6 +224,7 @@ TYPE specifies whether to open a 'file or a 'jar."
     (message "Jarchive package is required to open %s" (plist-get node :uri))))
 
 (defun ecp-tree--click-action (node)
+  "Run action based on NODE's type."
   (let ((nt (plist-get node :type)))
     (cond
      ((= 1 nt) (ecp-tree--undefined-action node))
@@ -241,8 +241,10 @@ TYPE specifies whether to open a 'file or a 'jar."
 
 (defun ecp-tree-show ()
   "Display the project tree using eglot's project structure.
-This function queries the eglot server for the current project's structure and displays it in a hierarchical tree view.
-It allows users to interact with nodes representing different entities such as files, namespaces, and methods."
+This function queries the eglot server for the current project's structure
+and displays it in a hierarchical tree view.
+It allows users to interact with nodes representing different entities
+such as files, namespaces, and methods."
   (interactive)
   (if (and (featurep 'eglot) (featurep 'hierarchy))
       (let* ((ecs (eglot-current-server))
@@ -256,7 +258,7 @@ It allows users to interact with nodes representing different entities such as f
      hierarchy
      root
      nil
-     (lambda (node) (ecp-tree--get-children hierarchy node ecs))
+     (lambda (node) (ecp-tree--get-children node ecs))
      nil
      't)
     (switch-to-buffer
