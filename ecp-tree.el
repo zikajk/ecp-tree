@@ -33,6 +33,7 @@
 
 ;; Usage:
 ;; M-x ecp-tree-show to display the project tree.
+;; M-x ecp-tree-show-current to display current namespace only.
 
 ;;; Code:
 ;; NOTE - disable eglot issues
@@ -141,7 +142,7 @@ FORMAT-STRING and ARGS are as in `format'."
 
 (defun ecp-tree-type-to-icon (n)
   "Select icon based on type of node - N."
-  (pcase n
+  (cl-case n
     (1 ecp-tree--project-icon)
     (2 ecp-tree--folder-icon)
     (3 ecp-tree--library-icon)
@@ -157,11 +158,13 @@ FORMAT-STRING and ARGS are as in `format'."
 ;;
 ;; End of customizations
 ;;
+
 (defconst ecp-tree--project-type 1)
 (defconst ecp-tree--folder-type 2)
 (defconst ecp-tree--library-type 3)
 (defconst ecp-tree--jar-type 4)
 (defconst ecp-tree--namespace-type 5)
+(defconst ecp-tree-class-type 6)
 (defconst ecp-tree--method-type 7)
 (defconst ecp-tree--variable-type 8)
 (defconst ecp-tree--interface-type 9)
@@ -169,7 +172,7 @@ FORMAT-STRING and ARGS are as in `format'."
 (defconst ecp-tree--call-site-type 11)
 
 
-(defun vector->plist (vector)
+(defun ecp-tree--vector-to-plist (vector)
   (append vector nil))
 
 (defun ecp-tree--format-node-name (icon label uri-hint)
@@ -224,22 +227,22 @@ FORMAT-STRING and ARGS are as in `format'."
     (ecp-tree--debug-message "Incoming calls: %s" incoming-calls)
     incoming-calls))
 
-
 (defun ecp-tree--get-children (node eglot-server node-type)
   "Get children for NODE in running EGLOT-SERVER."
   (ecp-tree--debug-message "Getting children for: %s" node)
   (if (listp node)
     (let ((nodes (plist-get node :nodes)))
       (if nodes
-          (vector->plist nodes)		; If nodes are directly available, return them.
+          (ecp-tree--vector-to-plist nodes)		; If nodes are directly available, return them.
         (ecp-tree--fetch-children node eglot-server)))
     (ecp-tree--fetch-children node eglot-server)))
 
 (defun ecp-tree--fetch-children (node eglot-server)
   "Fetch children nodes for NODE in running EGLOT-SERVER."
+  (ecp-tree--debug-message "Used Node: %s" node)
   (condition-case err
       (let* ((children-nodes
-              (vector->plist
+              (ecp-tree--vector-to-plist
 	       (plist-get
 		(eglot--request eglot-server :clojure/workspace/projectTree/nodes node :immediate 't)
 		:nodes)))
@@ -323,7 +326,8 @@ TYPE specifies whether to open a 'file or a 'jar."
   "Get call hierarchy children for NODE."
   (let* ((base-items (ecp-tree--prepare-call-hierarchy node server))
          (incoming-calls (cl-loop for item across base-items
-                                  append (vector->plist (ecp-tree--get-incoming-calls item server))))
+                                  append (ecp-tree--vector-to-plist
+					  (ecp-tree--get-incoming-calls item server))))
          (caller-nodes (mapcar (lambda (call)
                                  (let* ((from (plist-get call :from))
                                         (ranges (plist-get call :fromRanges))
@@ -338,9 +342,97 @@ TYPE specifies whether to open a 'file or a 'jar."
     caller-nodes))
 
 (defun ecp-tree--node-expansion (eglot-server node)
-  (if (= ecp-tree--method-type (plist-get node :type))
-      (ecp-tree--get-call-hierarchy-children node eglot-server)
-    (ecp-tree--get-children node eglot-server (plist-get node :type))))
+  "Get child nodes for NODE using EGLOT-SERVER.
+Returns call hierarchy children for methods/variables, or regular children for other nodes."
+  (let ((node-type (plist-get node :type)))
+    (cond
+     ((member node-type (list ecp-tree--method-type ecp-tree--variable-type))
+      (ecp-tree--get-call-hierarchy-children node eglot-server))
+     ((not (member node-type (list ecp-tree--caller-type ecp-tree--call-site-type)))
+      (ecp-tree--get-children node eglot-server node-type)))))
+
+
+(defun ecp-tree--get-current-context ()
+  "Get the current namespace and function position from buffer.
+Returns a plist with :namespace and :position keys."
+  (when (and (bound-and-true-p eglot--cached-server)
+             (eq major-mode 'clojure-mode))
+    (let* ((server (eglot--current-server-or-lose))
+           (uri (eglot--path-to-uri (buffer-file-name)))
+           (pos (eglot--pos-to-lsp-position)))
+      (list :uri uri
+            :position pos
+            :namespace (save-excursion
+                        (goto-char (point-min))
+                        (when (re-search-forward "(ns\\s-+\\([^[:space:])\n]+\\)" nil t)
+                          (match-string-no-properties 1)))))))
+
+(defun ecp-tree--display-tree (root-node)
+  "Display the project tree starting from ROOT-NODE."
+  (let* ((ecs (eglot--current-server-or-lose))
+         (project-name (eglot-project-nickname ecs))
+         (buffer-name (format "*%s-ecp-tree*" project-name))
+         (buffer (get-buffer-create buffer-name))
+         (hierarchy (hierarchy-new)))
+    (ecp-tree--debug-message "Initializing ecp-tree!")
+    (hierarchy-add-tree
+     hierarchy
+     root-node
+     nil
+     (lambda (node) (ecp-tree--node-expansion ecs node))
+     nil
+     t)
+    (switch-to-buffer
+     (hierarchy-tree-display
+      hierarchy
+      (lambda (node _)
+        (let ((name (ecp-tree--node-name node ecs)))
+          (hierarchy-labelfn-indent
+           (insert-text-button
+            name
+            'action (lambda (_)
+                     (ecp-tree--click-action node ecs))))))
+      buffer))))
+
+
+(defun ecp-tree-show-from-current ()
+  "Display the project tree starting from the current namespace.
+If not in a Clojure buffer or namespace cannot be determined, falls back to full tree."
+  (interactive)
+  (if (and (featurep 'eglot) (featurep 'hierarchy))
+      (let* ((ecs (eglot--current-server-or-lose))
+             (context (ecp-tree--get-current-context))
+             (project-name (eglot-project-nickname ecs))
+             (buffer-name (format "*%s-ecp-tree*" project-name))
+             (buffer (get-buffer-create buffer-name))
+             (hierarchy (hierarchy-new))
+             (current-pos (plist-get context :position))
+             ;; Create namespace node and pre-fetch its children
+             (ns-node (list :name (plist-get context :namespace)
+                           :type ecp-tree--namespace-type
+                           :uri (plist-get context :uri)
+                           :final :json-false)))
+
+        (ecp-tree--debug-message "Using namespace node with children: %s" ns-node)
+        (hierarchy-add-tree
+         hierarchy
+         ns-node
+         nil
+         (lambda (node) (ecp-tree--node-expansion ecs node))
+         nil
+	 't)
+        (switch-to-buffer
+         (hierarchy-tree-display
+          hierarchy
+          (lambda (node _)
+            (let ((name (ecp-tree--node-name node ecs)))
+              (hierarchy-labelfn-indent
+               (insert-text-button
+                name
+                'action (lambda (_)
+                         (ecp-tree--click-action node ecs))))))
+          buffer)))
+    (error "ecp-tree requires Emacs 29.1 or newer with built-in 'eglot' and 'hierarchy' packages")))
 
 (defun ecp-tree-show ()
   "Display the project tree using eglot's project structure.
@@ -375,7 +467,7 @@ such as files, namespaces, and methods."
 				   'action (lambda (_)
 					     (ecp-tree--click-action node ecs))))))
 	  buffer)))
-    (error "ECPT requires Emacs 29.1 or newer with built-in 'eglot' and 'hierarchy' packages")))
+    (error "ecp-tree requires Emacs 29.1 or newer with built-in 'eglot' and 'hierarchy' packages")))
 (provide 'ecp-tree)
 
 ;;; ecp-tree.el ends here

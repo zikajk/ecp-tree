@@ -1,7 +1,4 @@
 * Eglot Clojure Project Tree (ECP-Tree)
-  :PROPERTIES:
-  :CUSTOM_ID: ecp-tree
-  :END:
 
 #+NAME: screenshot
 [[./screenshot.png]]
@@ -13,28 +10,58 @@ This is an interactive project tree for Clojure projects. It facilitates the nav
 
 ** Installation
 
-To use ECP-Tree, ensure you have Emacs version 29.1 or newer installed, along with the Eglot and Hierarchy packages. Here's the minimum Emacs and package versions required:
+*** Installation
 
-- Emacs 29.1
-- Eglot 1.12.29
-- Hierarchy 0.7.0
+**** Prerequisites
+
+Ensure you have Emacs version 29.1 or newer installed. The following dependencies are handled automatically:
+
+- Eglot 1.12.29 (built into Emacs 29.1)
+- Hierarchy 0.7.0 (built into Emacs 29.1)
 - Jarchive 0.11.0
 
-Load the =ecp-tree.el= file into your Emacs and require it by adding the following line to your Emacs configuration:
+**** Manual Installation
 
-#+BEGIN_SRC emacs-lisp
-(require 'ecp-tree)
-#+END_SRC
+1. Clone the repository:
+   #+BEGIN_SRC shell
+   git clone https://github.com/zikajk/ecp-tree.git ~/.emacs.d/site-lisp/ecp-tree
+   #+END_SRC
+
+2. Add to your Emacs configuration:
+   #+BEGIN_SRC emacs-lisp
+   (add-to-list 'load-path "~/.emacs.d/site-lisp/ecp-tree")
+   (require 'ecp-tree)
+   #+END_SRC
 
 ** Usage
 
-To display the project tree, execute:
+There are two main commands:
+
+*** Display Full Project Tree
+To display the complete project tree:
 
 #+BEGIN_SRC
 M-x ecp-tree-show
 #+END_SRC
 
-To debug potentional problems during a hierarchy creation, use:
+*** Display Current Namespace Tree
+To display the tree starting from your current namespace:
+
+#+BEGIN_SRC
+M-x ecp-tree-show-from-current
+#+END_SRC
+
+This will show only the current namespace and its contents.
+
+*** Show Callers for var / fn
+:PROPERTIES:
+:ID:       58BE3373-0216-4208-9B99-D28986EFF07C
+:END:
+Number of callers next to each fn / var:
+[[./screenshot-call.png]]
+
+*** Debug Mode
+To debug potential problems during hierarchy creation:
 
 #+BEGIN_SRC
 M-x ecp-tree-toggle-debug
@@ -49,7 +76,6 @@ Can be customized by:
 ECP-Tree offers several customization options to adjust the appearance and behavior of the project tree. These include:
 
 - Icon (string) for different node types like projects, folders, libraries, etc.
-- Enabling or disabling caching for node's children to improve performance.
 - Sorting children nodes alphabetically.
 
 Refer to the package source for detailed customization options and their default values.
@@ -72,7 +98,6 @@ The ECP-Tree is developed and maintained by zikajk. For contributions, suggestio
 
 - Interactive project tree view.
 - Customizable icons (strings) for different node types.
-- Performance optimizations through optional caching.
 - Sorting of children nodes.
 
 *** Future Developments
